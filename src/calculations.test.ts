@@ -33,6 +33,7 @@ function makeInputs(
     utilitiesMonthly: 2_000,
     platformFeePct: 3,
     appreciationPct: 5,
+    rentIncreasePct: 0,
     holdYears: 5,
     ...overrides,
   };
@@ -387,5 +388,72 @@ describe("calculate (full integration)", () => {
     );
     expect(leveraged.cashInvested).toBeLessThan(allCash.cashInvested);
     expect(leveraged.mortgageAnnual).toBeGreaterThan(0);
+  });
+
+  test("cumulative cash flow should equal cashFlow * holdYears when rent increase is 0%", () => {
+    const r = calculate(makeInputs({ rentIncreasePct: 0, holdYears: 5 }));
+    expect(r.cumulativeCashFlow).toBeCloseTo(r.cashFlow * 5, 2);
+  });
+
+  test("cumulative cash flow should exceed flat projection when rent increases annually", () => {
+    const flat = calculate(makeInputs({ rentIncreasePct: 0, holdYears: 5 }));
+    const growing = calculate(makeInputs({ rentIncreasePct: 6, holdYears: 5 }));
+    expect(growing.cumulativeCashFlow).toBeGreaterThan(flat.cumulativeCashFlow);
+  });
+
+  test("total profit should include cumulative cash flow plus appreciation", () => {
+    const r = calculate(makeInputs({ rentIncreasePct: 4, holdYears: 3 }));
+    const expectedProfit = r.cumulativeCashFlow + (r.futureValue - 3_500_000);
+    expect(r.totalProfit).toBeCloseTo(expectedProfit, 2);
+  });
+
+  test("rent increase should compound correctly year over year", () => {
+    const r = calculate(
+      makeInputs({
+        rentIncreasePct: 10,
+        holdYears: 3,
+        downPaymentPct: 100,
+        predialAnnual: 0,
+        maintenancePct: 0,
+        hoaMonthly: 0,
+        insuranceAnnual: 0,
+        managementFeePct: 0,
+        appreciationPct: 0,
+      }),
+    );
+    const year1 = r.grossAnnual;
+    const year2 = r.grossAnnual * 1.1;
+    const year3 = r.grossAnnual * 1.1 ** 2;
+    expect(r.cumulativeCashFlow).toBeCloseTo(year1 + year2 + year3, 2);
+  });
+
+  test("should return one snapshot per hold year", () => {
+    const r = calculate(makeInputs({ holdYears: 7 }));
+    expect(r.yearSnapshots).toHaveLength(7);
+    expect(r.yearSnapshots[0].year).toBe(1);
+    expect(r.yearSnapshots[6].year).toBe(7);
+  });
+
+  test("should return empty snapshots when hold years is 0", () => {
+    const r = calculate(makeInputs({ holdYears: 0 }));
+    expect(r.yearSnapshots).toHaveLength(0);
+  });
+
+  test("year 1 snapshot should match top-level year-1 values", () => {
+    const r = calculate(makeInputs({ rentIncreasePct: 5, holdYears: 3 }));
+    const snap = r.yearSnapshots[0];
+    expect(snap.grossAnnual).toBeCloseTo(r.grossAnnual, 2);
+    expect(snap.totalExpenses).toBeCloseTo(r.totalExpensesAnnual, 2);
+    expect(snap.noi).toBeCloseTo(r.noi, 2);
+    expect(snap.cashFlow).toBeCloseTo(r.cashFlow, 2);
+  });
+
+  test("later year snapshots should reflect compounded rent growth", () => {
+    const r = calculate(makeInputs({ rentIncreasePct: 10, holdYears: 3 }));
+    expect(r.yearSnapshots[1].grossAnnual).toBeCloseTo(r.grossAnnual * 1.1, 2);
+    expect(r.yearSnapshots[2].grossAnnual).toBeCloseTo(
+      r.grossAnnual * 1.1 ** 2,
+      2,
+    );
   });
 });

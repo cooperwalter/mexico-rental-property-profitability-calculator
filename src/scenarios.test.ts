@@ -34,6 +34,7 @@ function makeInputs(
     utilitiesMonthly: 2_000,
     platformFeePct: 3,
     appreciationPct: 5,
+    rentIncreasePct: 0,
     holdYears: 5,
     ...overrides,
   };

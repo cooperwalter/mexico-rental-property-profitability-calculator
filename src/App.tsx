@@ -1,5 +1,9 @@
 import { type ReactNode, useMemo, useState } from "react";
-import { type CalculatorInputs, calculate } from "./calculations";
+import {
+  type CalculatorInputs,
+  calculate,
+  type YearSnapshot,
+} from "./calculations";
 import {
   type FormFieldValue,
   formatCurrency,
@@ -22,8 +26,8 @@ const DEFAULT_INPUTS: CalculatorInputs = {
   rehabCost: 550_000,
   furnishingCost: 250_000,
   downPaymentPct: 20,
-  loanRatePct: 8.5,
-  loanTermYears: 15,
+  loanRatePct: 7,
+  loanTermYears: 30,
   monthlyRent: 31_500,
   occupancyPct: 90,
   isShortTerm: false,
@@ -37,6 +41,7 @@ const DEFAULT_INPUTS: CalculatorInputs = {
   utilitiesMonthly: 2_000,
   platformFeePct: 3,
   appreciationPct: 7.5,
+  rentIncreasePct: 4,
   holdYears: 7,
 };
 
@@ -68,6 +73,7 @@ function formToInputs(form: FormState): CalculatorInputs {
     utilitiesMonthly: toNumber(form.utilitiesMonthly),
     platformFeePct: toNumber(form.platformFeePct),
     appreciationPct: toNumber(form.appreciationPct),
+    rentIncreasePct: toNumber(form.rentIncreasePct),
     holdYears: toNumber(form.holdYears),
   };
 }
@@ -331,6 +337,63 @@ function PLRow({
   );
 }
 
+function PLSummary({
+  title,
+  snapshot,
+}: {
+  title: string;
+  snapshot: YearSnapshot;
+}) {
+  const pos = snapshot.cashFlow >= 0;
+  return (
+    <div>
+      <h4
+        className="text-xs font-semibold mb-2 mt-3 pb-1 border-b"
+        style={{
+          color: "var(--text-secondary, #666)",
+          borderColor: "var(--border, #e5e5e5)",
+        }}
+      >
+        {title}
+      </h4>
+      <div className="space-y-1 text-sm">
+        <PLRow
+          label="Gross Income"
+          value={`$${formatNumber(snapshot.grossAnnual)}`}
+        />
+        <PLRow
+          label="  − Expenses"
+          value={`$${formatNumber(snapshot.totalExpenses)}`}
+          negative
+        />
+        <PLRow
+          label="NOI"
+          value={`$${formatNumber(snapshot.noi)}`}
+          bold
+          topBorder
+        />
+        {snapshot.mortgageAnnual > 0 && (
+          <PLRow
+            label="  − Debt Service"
+            value={`$${formatNumber(snapshot.mortgageAnnual)}`}
+            negative
+          />
+        )}
+        <div
+          className="flex justify-between border-t pt-1 mt-1 font-bold"
+          style={{
+            borderColor: "var(--border, #ddd)",
+            color: pos ? "#16a34a" : "#dc2626",
+          }}
+        >
+          <span>Cash Flow</span>
+          <span>{formatCurrency(snapshot.cashFlow)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ToggleButton({
   active,
   onClick,
@@ -516,6 +579,27 @@ export default function App() {
 
   const hasLoan = toNumber(form.downPaymentPct) < 100;
   const cashFlowPositive = results.monthlyCashFlow >= 0;
+
+  const plSnapshots = useMemo(() => {
+    const snaps = results.yearSnapshots;
+    if (snaps.length === 0) return [];
+    if (snaps.length === 1) return [{ title: "Year 1", snapshot: snaps[0] }];
+    const midIndex = Math.floor((snaps.length - 1) / 2);
+    const items: { title: string; snapshot: YearSnapshot }[] = [
+      { title: "Year 1", snapshot: snaps[0] },
+    ];
+    if (midIndex > 0 && midIndex < snaps.length - 1) {
+      items.push({
+        title: `Year ${snaps[midIndex].year}`,
+        snapshot: snaps[midIndex],
+      });
+    }
+    items.push({
+      title: `Year ${snaps[snaps.length - 1].year}`,
+      snapshot: snaps[snaps.length - 1],
+    });
+    return items;
+  }, [results.yearSnapshots]);
 
   return (
     <div
@@ -804,6 +888,13 @@ export default function App() {
               tip="Expected yearly increase in property value. CDMX has seen 3–8% annually in popular colonias, but this varies and is never guaranteed."
             />
             <NumberInput
+              label="Annual Rent Increase"
+              value={form.rentIncreasePct}
+              onChange={set("rentIncreasePct")}
+              suffix="%"
+              tip="Yearly rent growth rate. Conservative: 3.5–4% (CDMX law caps renewals at prior year's inflation). Moderate: 6–8% (resetting to market between tenants). Optimistic: 9–10% (gentrifying areas like Narvarte)."
+            />
+            <NumberInput
               label="Hold Period"
               value={form.holdYears}
               onChange={set("holdYears")}
@@ -819,52 +910,14 @@ export default function App() {
               border: "1px solid var(--border, #e0e0e0)",
             }}
           >
-            <h3 className="text-sm font-semibold mb-3">Annual P&L Summary</h3>
-            <div className="space-y-1 text-sm">
-              <PLRow
-                label="Gross Annual Income"
-                value={`$${formatNumber(results.grossAnnual)}`}
-                tip="Total rental income for the year after accounting for occupancy rate."
+            <h3 className="text-sm font-semibold mb-3">P&L by Year</h3>
+            {plSnapshots.map(({ title, snapshot }) => (
+              <PLSummary
+                key={snapshot.year}
+                title={title}
+                snapshot={snapshot}
               />
-              <PLRow
-                label="  − Operating Expenses"
-                value={`$${formatNumber(results.totalExpensesAnnual)}`}
-                negative
-                tip="All costs to operate the property: taxes, insurance, HOA, maintenance, management, and platform fees."
-              />
-              <PLRow
-                label="Net Operating Income (NOI)"
-                value={`$${formatNumber(results.noi)}`}
-                bold
-                topBorder
-                tip="Income minus operating expenses, before mortgage payments. The core measure of a property's earning power regardless of how it's financed."
-              />
-              {results.mortgageAnnual > 0 && (
-                <PLRow
-                  label="  − Debt Service"
-                  value={`$${formatNumber(results.mortgageAnnual)}`}
-                  negative
-                  tip="Total annual mortgage payments (principal + interest). This is the cost of financing the property."
-                />
-              )}
-              <div
-                className="flex justify-between border-t pt-1 mt-1 font-bold"
-                style={{
-                  borderColor: "var(--border, #ddd)",
-                  color: cashFlowPositive ? "#16a34a" : "#dc2626",
-                }}
-              >
-                <span>
-                  <Tooltip
-                    term="Annual Cash Flow"
-                    tip="The actual money in your pocket after all expenses and loan payments. This is what you take home each year."
-                  >
-                    <span>Annual Cash Flow</span>
-                  </Tooltip>
-                </span>
-                <span>{formatCurrency(results.cashFlow)}</span>
-              </div>
-            </div>
+            ))}
             <div
               className="mt-4 pt-3 border-t text-sm space-y-1"
               style={{ borderColor: "var(--border, #ddd)" }}
@@ -873,6 +926,11 @@ export default function App() {
                 label="Total Cash Invested"
                 value={`$${formatNumber(results.cashInvested)}`}
                 tip="All the actual cash you put into the deal: down payment + closing costs + rehab + furnishing."
+              />
+              <PLRow
+                label={`Cash Flow over ${form.holdYears}yr`}
+                value={`$${formatNumber(results.cumulativeCashFlow)}`}
+                tip="Total cash flow summed across all years, accounting for annual rent increases. Each year's rent grows by the rent increase rate."
               />
               <PLRow
                 label={`Property Value in ${form.holdYears}yr`}

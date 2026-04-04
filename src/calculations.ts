@@ -28,6 +28,7 @@ export interface ExpenseInputs {
 
 export interface ProjectionInputs {
   appreciationPct: number;
+  rentIncreasePct: number;
   holdYears: number;
 }
 
@@ -58,9 +59,20 @@ export interface CalculatorResults {
   capRatePct: number;
   cashOnCashPct: number;
   futureValue: number;
+  cumulativeCashFlow: number;
+  yearSnapshots: YearSnapshot[];
   totalProfit: number;
   totalReturnPct: number;
   annualizedReturnPct: number;
+}
+
+export interface YearSnapshot {
+  year: number;
+  grossAnnual: number;
+  totalExpenses: number;
+  noi: number;
+  mortgageAnnual: number;
+  cashFlow: number;
 }
 
 export function calculateMonthlyMortgage(
@@ -148,8 +160,31 @@ export function calculate(inputs: CalculatorInputs): CalculatorResults {
   const futureValue =
     inputs.purchasePrice *
     (1 + inputs.appreciationPct / 100) ** inputs.holdYears;
-  const totalProfit =
-    cashFlow * inputs.holdYears + (futureValue - inputs.purchasePrice);
+
+  const rentGrowthRate = inputs.rentIncreasePct / 100;
+  let cumulativeCashFlow = 0;
+  const yearSnapshots: YearSnapshot[] = [];
+  for (let year = 0; year < inputs.holdYears; year++) {
+    const yearGrossAnnual = grossAnnual * (1 + rentGrowthRate) ** year;
+    const yearExpenses = calculateAnnualExpenses(
+      yearGrossAnnual,
+      inputs,
+      inputs.isShortTerm,
+    );
+    const yearNoi = yearGrossAnnual - yearExpenses;
+    const yearCashFlow = yearNoi - mortgageAnnual;
+    cumulativeCashFlow += yearCashFlow;
+    yearSnapshots.push({
+      year: year + 1,
+      grossAnnual: yearGrossAnnual,
+      totalExpenses: yearExpenses,
+      noi: yearNoi,
+      mortgageAnnual,
+      cashFlow: yearCashFlow,
+    });
+  }
+
+  const totalProfit = cumulativeCashFlow + (futureValue - inputs.purchasePrice);
   const totalReturnPct =
     cashInvested > 0 ? (totalProfit / cashInvested) * 100 : 0;
   const annualizedReturnPct =
@@ -179,6 +214,8 @@ export function calculate(inputs: CalculatorInputs): CalculatorResults {
     capRatePct,
     cashOnCashPct,
     futureValue,
+    cumulativeCashFlow,
+    yearSnapshots,
     totalProfit,
     totalReturnPct,
     annualizedReturnPct,
