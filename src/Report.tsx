@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { CalculatorInputs, CalculatorResults } from "./calculations";
 import { formatCurrency, formatNumber, formatPercent } from "./format";
 
@@ -11,13 +11,13 @@ function BarChart({
   data,
   label,
   color,
-  negativeColor,
 }: {
   data: { label: string; value: number }[];
   label: string;
   color: string;
-  negativeColor?: string;
 }) {
+  const [hovered, setHovered] = useState<number | null>(null);
+
   if (data.length === 0) return null;
   const maxAbs = Math.max(...data.map((d) => Math.abs(d.value)), 1);
   const barHeight = 24;
@@ -36,15 +36,26 @@ function BarChart({
       </h4>
       <svg
         width="100%"
-        viewBox={`0 0 ${labelWidth + chartWidth + 100} ${svgHeight}`}
-        style={{ maxWidth: 500 }}
+        viewBox={`0 0 ${labelWidth + chartWidth + 120} ${svgHeight}`}
+        style={{ maxWidth: 520 }}
+        onPointerMove={(e) => {
+          const svg = e.currentTarget;
+          const pt = svg.createSVGPoint();
+          pt.x = e.clientX;
+          pt.y = e.clientY;
+          const svgPt = pt.matrixTransform(svg.getScreenCTM()?.inverse());
+          const idx = Math.floor(svgPt.y / (barHeight + gap));
+          setHovered(idx >= 0 && idx < data.length ? idx : null);
+        }}
+        onPointerLeave={() => setHovered(null)}
       >
         <title>{label}</title>
         {data.map((d, i) => {
           const y = i * (barHeight + gap);
           const barW = (Math.abs(d.value) / maxAbs) * chartWidth;
           const isNeg = d.value < 0;
-          const fillColor = isNeg ? (negativeColor ?? "#dc2626") : color;
+          const fillColor = isNeg ? "#dc2626" : color;
+          const isHovered = hovered === i;
           return (
             <g key={d.label}>
               <text
@@ -63,13 +74,14 @@ function BarChart({
                 height={barHeight}
                 rx={4}
                 fill={fillColor}
-                opacity={0.85}
+                opacity={isHovered ? 1 : 0.8}
               />
               <text
                 x={labelWidth + barW + 6}
                 y={y + barHeight / 2 + 4}
                 fontSize={11}
-                fill="var(--text-primary, #333)"
+                fontWeight={isHovered ? 700 : 400}
+                fill={isNeg ? "#dc2626" : "var(--text-primary, #333)"}
               >
                 {formatCurrency(d.value)}
               </text>
@@ -90,10 +102,15 @@ function LineChart({
   labels: string[];
   title: string;
 }) {
+  const [hovered, setHovered] = useState<number | null>(null);
+
   if (labels.length === 0) return null;
   const allValues = series.flatMap((s) => s.data);
-  const minVal = Math.min(...allValues);
-  const maxVal = Math.max(...allValues);
+  const dataMin = Math.min(...allValues);
+  const dataMax = Math.max(...allValues);
+
+  const minVal = Math.min(dataMin, 0);
+  const maxVal = Math.max(dataMax, 0);
   const range = maxVal - minVal || 1;
 
   const padLeft = 80;
@@ -116,6 +133,9 @@ function LineChart({
     (_, i) => minVal + (range / gridLines) * i,
   );
 
+  const hasZeroLine =
+    minVal < 0 && maxVal > 0 && !gridValues.some((v) => Math.abs(v) < 0.01);
+
   return (
     <div className="mb-6">
       <h4
@@ -128,6 +148,22 @@ function LineChart({
         width="100%"
         viewBox={`0 0 ${svgW} ${svgH}`}
         style={{ maxWidth: 540 }}
+        onPointerMove={(e) => {
+          const svg = e.currentTarget;
+          const pt = svg.createSVGPoint();
+          pt.x = e.clientX;
+          pt.y = e.clientY;
+          const svgPt = pt.matrixTransform(svg.getScreenCTM()?.inverse());
+          if (labels.length <= 1) {
+            setHovered(
+              svgPt.x >= padLeft && svgPt.x <= padLeft + chartW ? 0 : null,
+            );
+            return;
+          }
+          const idx = Math.round((svgPt.x - padLeft) / xStep);
+          setHovered(idx >= 0 && idx < labels.length ? idx : null);
+        }}
+        onPointerLeave={() => setHovered(null)}
       >
         <title>{title}</title>
         {gridValues.map((v) => (
@@ -151,6 +187,43 @@ function LineChart({
             </text>
           </g>
         ))}
+
+        {hasZeroLine && (
+          <g>
+            <line
+              x1={padLeft}
+              y1={toY(0)}
+              x2={padLeft + chartW}
+              y2={toY(0)}
+              stroke="var(--text-secondary, #999)"
+              strokeWidth={1.5}
+              strokeDasharray="4 3"
+            />
+            <text
+              x={padLeft - 8}
+              y={toY(0) + 4}
+              textAnchor="end"
+              fontSize={10}
+              fontWeight={600}
+              fill="var(--text-secondary, #666)"
+            >
+              $0
+            </text>
+          </g>
+        )}
+
+        {minVal <= 0 && maxVal >= 0 && !hasZeroLine && (
+          <line
+            x1={padLeft}
+            y1={toY(0)}
+            x2={padLeft + chartW}
+            y2={toY(0)}
+            stroke="var(--text-secondary, #999)"
+            strokeWidth={1.5}
+            strokeDasharray="4 3"
+          />
+        )}
+
         {labels.map((l, i) => (
           <text
             key={l}
@@ -163,6 +236,7 @@ function LineChart({
             {l}
           </text>
         ))}
+
         {series.map((s) => {
           const points = s.data.map((v, i) => `${toX(i)},${toY(v)}`).join(" ");
           return (
@@ -175,18 +249,89 @@ function LineChart({
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-              {s.data.map((v, i) => (
-                <circle
-                  key={`${s.name}-${labels[i]}`}
-                  cx={toX(i)}
-                  cy={toY(v)}
-                  r={3.5}
-                  fill={s.color}
-                />
-              ))}
+              {s.data.map((v, i) => {
+                const isNeg = v < 0;
+                const pointColor = isNeg ? "#dc2626" : s.color;
+                return (
+                  <circle
+                    key={`${s.name}-${labels[i]}`}
+                    cx={toX(i)}
+                    cy={toY(v)}
+                    r={hovered === i ? 6 : 3.5}
+                    fill={pointColor}
+                    stroke={hovered === i ? "#fff" : "none"}
+                    strokeWidth={2}
+                  />
+                );
+              })}
             </g>
           );
         })}
+
+        {hovered !== null && (
+          <line
+            x1={toX(hovered)}
+            y1={padTop}
+            x2={toX(hovered)}
+            y2={padTop + chartH}
+            stroke="var(--text-secondary, #aaa)"
+            strokeWidth={1}
+            strokeDasharray="3 2"
+            pointerEvents="none"
+          />
+        )}
+
+        {hovered !== null && (
+          <g pointerEvents="none">
+            {(() => {
+              const tooltipX = toX(hovered);
+              const tooltipW = 130;
+              const lineH = 16;
+              const tooltipH = 6 + series.length * lineH + 6;
+              const flipX = tooltipX + tooltipW + 10 > svgW;
+              const tx = flipX ? tooltipX - tooltipW - 10 : tooltipX + 10;
+              const ty = padTop + 4;
+              return (
+                <>
+                  <rect
+                    x={tx}
+                    y={ty}
+                    width={tooltipW}
+                    height={tooltipH}
+                    rx={6}
+                    fill="var(--text-primary, #222)"
+                    opacity={0.92}
+                  />
+                  <text
+                    x={tx + 8}
+                    y={ty + 16}
+                    fontSize={10}
+                    fontWeight={700}
+                    fill="#fff"
+                  >
+                    {labels[hovered]}
+                  </text>
+                  {series.map((s, si) => {
+                    const val = s.data[hovered];
+                    const isNeg = val < 0;
+                    return (
+                      <text
+                        key={s.name}
+                        x={tx + 8}
+                        y={ty + 16 + (si + 1) * lineH}
+                        fontSize={10}
+                        fill={isNeg ? "#fca5a5" : "#d1d5db"}
+                      >
+                        <tspan fill={s.color}>&#9679; </tspan>
+                        {s.name}: {formatCurrency(val)}
+                      </text>
+                    );
+                  })}
+                </>
+              );
+            })()}
+          </g>
+        )}
       </svg>
       <div className="flex gap-4 mt-1 ml-20">
         {series.map((s) => (
