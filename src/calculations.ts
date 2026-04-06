@@ -29,6 +29,8 @@ export interface ExpenseInputs {
 export interface ProjectionInputs {
   appreciationPct: number;
   rentIncreasePct: number;
+  expenseInflationPct: number;
+  sellingCostPct: number;
   holdYears: number;
 }
 
@@ -58,9 +60,12 @@ export interface CalculatorResults {
   monthlyCashFlow: number;
   capRatePct: number;
   cashOnCashPct: number;
+  appreciationBase: number;
   futureValue: number;
   cumulativeCashFlow: number;
+  equityBuildup: number;
   yearSnapshots: YearSnapshot[];
+  sellingCosts: number;
   totalProfit: number;
   totalReturnPct: number;
   annualizedReturnPct: number;
@@ -72,6 +77,8 @@ export interface YearSnapshot {
   totalExpenses: number;
   noi: number;
   mortgageAnnual: number;
+  principalPaid: number;
+  interestPaid: number;
   cashFlow: number;
 }
 
@@ -80,11 +87,31 @@ export function calculateMonthlyMortgage(
   annualRatePct: number,
   termYears: number,
 ): number {
-  if (loanAmount <= 0 || annualRatePct <= 0 || termYears <= 0) return 0;
+  if (loanAmount <= 0 || annualRatePct < 0 || termYears <= 0) return 0;
+  if (annualRatePct === 0) return loanAmount / (termYears * 12);
   const monthlyRate = annualRatePct / 100 / 12;
   const totalPayments = termYears * 12;
   const compoundFactor = (1 + monthlyRate) ** totalPayments;
   return (loanAmount * (monthlyRate * compoundFactor)) / (compoundFactor - 1);
+}
+
+export function calculateRemainingBalance(
+  loanAmount: number,
+  annualRatePct: number,
+  termYears: number,
+  yearsElapsed: number,
+): number {
+  if (loanAmount <= 0 || annualRatePct < 0 || termYears <= 0) return 0;
+  if (yearsElapsed >= termYears) return 0;
+  if (annualRatePct === 0) {
+    return loanAmount * (1 - yearsElapsed / termYears);
+  }
+  const r = annualRatePct / 100 / 12;
+  const n = termYears * 12;
+  const k = yearsElapsed * 12;
+  const compoundN = (1 + r) ** n;
+  const compoundK = (1 + r) ** k;
+  return (loanAmount * (compoundN - compoundK)) / (compoundN - 1);
 }
 
 export function calculateGrossMonthlyIncome(rental: RentalInputs): number {
@@ -97,18 +124,23 @@ export function calculateAnnualExpenses(
   grossAnnual: number,
   expenses: ExpenseInputs,
   isShortTerm: boolean,
+  inflationPct = 0,
+  year = 0,
 ): number {
+  const inflationFactor = (1 + inflationPct / 100) ** year;
   const maintenance = grossAnnual * (expenses.maintenancePct / 100);
   const management = grossAnnual * (expenses.managementFeePct / 100);
   const platform = isShortTerm
     ? grossAnnual * (expenses.platformFeePct / 100)
     : 0;
-  const utilities = isShortTerm ? expenses.utilitiesMonthly * 12 : 0;
+  const utilities = isShortTerm
+    ? expenses.utilitiesMonthly * 12 * inflationFactor
+    : 0;
   return (
-    expenses.predialAnnual +
+    expenses.predialAnnual * inflationFactor +
     maintenance +
-    expenses.hoaMonthly * 12 +
-    expenses.insuranceAnnual +
+    expenses.hoaMonthly * 12 * inflationFactor +
+    expenses.insuranceAnnual * inflationFactor +
     management +
     platform +
     utilities
@@ -135,7 +167,9 @@ export function calculate(inputs: CalculatorInputs): CalculatorResults {
   const mortgageAnnual = monthlyMortgage * 12;
 
   const grossMonthly = calculateGrossMonthlyIncome(inputs);
-  const effectiveMonthly = grossMonthly * (inputs.occupancyPct / 100);
+  const effectiveMonthly = inputs.isShortTerm
+    ? grossMonthly
+    : grossMonthly * (inputs.occupancyPct / 100);
   const grossAnnual = effectiveMonthly * 12;
 
   const maintenanceAnnual = grossAnnual * (inputs.maintenancePct / 100);
@@ -148,18 +182,21 @@ export function calculate(inputs: CalculatorInputs): CalculatorResults {
     grossAnnual,
     inputs,
     inputs.isShortTerm,
+    inputs.expenseInflationPct,
+    0,
   );
 
   const noi = grossAnnual - totalExpensesAnnual;
   const cashFlow = noi - mortgageAnnual;
   const monthlyCashFlow = cashFlow / 12;
 
-  const capRatePct = totalInvestment > 0 ? (noi / totalInvestment) * 100 : 0;
+  const capRatePct =
+    inputs.purchasePrice > 0 ? (noi / inputs.purchasePrice) * 100 : 0;
   const cashOnCashPct = cashInvested > 0 ? (cashFlow / cashInvested) * 100 : 0;
 
+  const appreciationBase = inputs.purchasePrice + inputs.rehabCost;
   const futureValue =
-    inputs.purchasePrice *
-    (1 + inputs.appreciationPct / 100) ** inputs.holdYears;
+    appreciationBase * (1 + inputs.appreciationPct / 100) ** inputs.holdYears;
 
   const rentGrowthRate = inputs.rentIncreasePct / 100;
   let cumulativeCashFlow = 0;
@@ -170,27 +207,60 @@ export function calculate(inputs: CalculatorInputs): CalculatorResults {
       yearGrossAnnual,
       inputs,
       inputs.isShortTerm,
+      inputs.expenseInflationPct,
+      year,
     );
     const yearNoi = yearGrossAnnual - yearExpenses;
-    const yearCashFlow = yearNoi - mortgageAnnual;
+
+    const balanceStart = calculateRemainingBalance(
+      loanAmount,
+      inputs.loanRatePct,
+      inputs.loanTermYears,
+      year,
+    );
+    const balanceEnd = calculateRemainingBalance(
+      loanAmount,
+      inputs.loanRatePct,
+      inputs.loanTermYears,
+      year + 1,
+    );
+    const yearMortgage = balanceStart > 0 ? mortgageAnnual : 0;
+    const principalPaid = balanceStart - balanceEnd;
+    const interestPaid = yearMortgage - principalPaid;
+    const yearCashFlow = yearNoi - yearMortgage;
     cumulativeCashFlow += yearCashFlow;
+
     yearSnapshots.push({
       year: year + 1,
       grossAnnual: yearGrossAnnual,
       totalExpenses: yearExpenses,
       noi: yearNoi,
-      mortgageAnnual,
+      mortgageAnnual: yearMortgage,
+      principalPaid,
+      interestPaid,
       cashFlow: yearCashFlow,
     });
   }
 
-  const totalProfit = cumulativeCashFlow + (futureValue - inputs.purchasePrice);
+  const remainingBalance = calculateRemainingBalance(
+    loanAmount,
+    inputs.loanRatePct,
+    inputs.loanTermYears,
+    inputs.holdYears,
+  );
+  const equityBuildup = loanAmount - remainingBalance;
+  const sellingCosts = futureValue * (inputs.sellingCostPct / 100);
+  const saleProceeds = futureValue - remainingBalance - sellingCosts;
+  const totalProfit = saleProceeds + cumulativeCashFlow - cashInvested;
   const totalReturnPct =
     cashInvested > 0 ? (totalProfit / cashInvested) * 100 : 0;
+  const totalReturnRatio = cashInvested > 0 ? totalProfit / cashInvested : 0;
   const annualizedReturnPct =
-    cashInvested > 0 && inputs.holdYears > 0
-      ? ((1 + totalProfit / cashInvested) ** (1 / inputs.holdYears) - 1) * 100
-      : 0;
+    cashInvested > 0 && inputs.holdYears > 0 && 1 + totalReturnRatio > 0
+      ? ((1 + totalReturnRatio) ** (1 / inputs.holdYears) - 1) * 100
+      : cashInvested > 0 && inputs.holdYears > 0
+        ? -100
+        : 0;
 
   return {
     closingCost,
@@ -213,9 +283,12 @@ export function calculate(inputs: CalculatorInputs): CalculatorResults {
     monthlyCashFlow,
     capRatePct,
     cashOnCashPct,
+    appreciationBase,
     futureValue,
     cumulativeCashFlow,
+    equityBuildup,
     yearSnapshots,
+    sellingCosts,
     totalProfit,
     totalReturnPct,
     annualizedReturnPct,

@@ -35,6 +35,8 @@ function makeInputs(
     platformFeePct: 3,
     appreciationPct: 5,
     rentIncreasePct: 0,
+    expenseInflationPct: 0,
+    sellingCostPct: 0,
     holdYears: 5,
     ...overrides,
   };
