@@ -104,57 +104,14 @@ function Tooltip({
       onClick={() => setShow(!show)}
     >
       {children ?? term}
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 15,
-          height: 15,
-          borderRadius: "50%",
-          fontSize: 10,
-          fontWeight: 700,
-          background: "var(--border, #ccc)",
-          color: "var(--text-secondary, #666)",
-          cursor: "help",
-          flexShrink: 0,
-        }}
-      >
+      <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[9px] font-bold bg-rule text-ink-muted cursor-help shrink-0">
         ?
       </span>
       {show && (
-        <span
-          style={{
-            position: "absolute",
-            bottom: "calc(100% + 6px)",
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "var(--text-primary, #222)",
-            color: "#fff",
-            fontSize: 12,
-            lineHeight: 1.4,
-            padding: "8px 12px",
-            borderRadius: 8,
-            width: 240,
-            zIndex: 50,
-            pointerEvents: "none",
-            boxShadow: "0 4px 12px rgba(0,0,0,.2)",
-          }}
-        >
-          <strong style={{ display: "block", marginBottom: 2 }}>{term}</strong>
+        <span className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-ink text-paper text-xs leading-snug px-3 py-2 rounded-md w-60 z-50 pointer-events-none shadow-lg">
+          <strong className="block mb-0.5 font-body">{term}</strong>
           {tip}
-          <span
-            style={{
-              position: "absolute",
-              top: "100%",
-              left: "50%",
-              transform: "translateX(-50%)",
-              borderWidth: 6,
-              borderStyle: "solid",
-              borderColor:
-                "var(--text-primary, #222) transparent transparent transparent",
-            }}
-          />
+          <span className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-ink" />
         </span>
       )}
     </button>
@@ -190,25 +147,13 @@ function NumberInput({
   tip?: string;
 }) {
   return (
-    <label className={compact ? "mb-2 block" : "mb-3 block"}>
-      <span
-        className="block text-sm font-medium mb-1"
-        style={{ color: "var(--text-secondary, #555)" }}
-      >
+    <label className={`block ${compact ? "mb-1.5" : "mb-3"}`}>
+      <span className="block text-xs tracking-wide uppercase text-ink-muted mb-1 font-body">
         <OptionalTooltip label={label} tip={tip} />
       </span>
-      <div
-        className="flex items-center rounded-lg border px-3 py-2"
-        style={{
-          borderColor: "var(--border, #ddd)",
-          background: "var(--bg-input, #fff)",
-        }}
-      >
+      <div className="flex items-center border-b border-rule pb-1.5 focus-within:border-ink transition-colors">
         {prefix && (
-          <span
-            className="text-sm mr-1"
-            style={{ color: "var(--text-secondary, #888)" }}
-          >
+          <span className="text-sm text-ink-faint mr-1 font-body">
             {prefix}
           </span>
         )}
@@ -218,31 +163,22 @@ function NumberInput({
           onChange={(e) =>
             onChange(e.target.value === "" ? "" : Number(e.target.value))
           }
-          className="w-full bg-transparent outline-none text-sm"
-          style={{ color: "var(--text-primary, #222)" }}
+          className="w-full bg-transparent outline-none text-sm font-body text-ink tabular-nums"
         />
         {suffix && (
-          <span
-            className="text-sm ml-1 whitespace-nowrap"
-            style={{ color: "var(--text-secondary, #888)" }}
-          >
+          <span className="text-xs text-ink-faint ml-1 whitespace-nowrap font-body">
             {suffix}
           </span>
         )}
       </div>
       {hint && (
-        <p
-          className="text-xs mt-0.5"
-          style={{ color: "var(--text-secondary, #999)" }}
-        >
-          {hint}
-        </p>
+        <p className="text-[11px] mt-1 text-ink-muted font-body">{hint}</p>
       )}
     </label>
   );
 }
 
-function StatCard({
+function Metric({
   label,
   value,
   sub,
@@ -255,33 +191,20 @@ function StatCard({
   positive?: boolean;
   tip?: string;
 }) {
-  const color =
+  const valueColor =
     positive === true
-      ? "#16a34a"
+      ? "text-gain"
       : positive === false
-        ? "#dc2626"
-        : "var(--text-primary, #222)";
+        ? "text-loss"
+        : "text-ink";
   return (
-    <div
-      className="rounded-xl p-4"
-      style={{ background: "var(--bg-card, #f7f7f7)" }}
-    >
-      <p
-        className="text-xs font-medium mb-1"
-        style={{ color: "var(--text-secondary, #888)" }}
-      >
+    <div className="pr-6">
+      <p className="text-[11px] tracking-wide uppercase text-ink-muted mb-1 font-body">
         <OptionalTooltip label={label} tip={tip} />
       </p>
-      <p className="text-xl font-bold" style={{ color }}>
-        {value}
-      </p>
+      <p className={`text-2xl font-display ${valueColor}`}>{value}</p>
       {sub && (
-        <p
-          className="text-xs mt-0.5"
-          style={{ color: "var(--text-secondary, #999)" }}
-        >
-          {sub}
-        </p>
+        <p className="text-[11px] mt-0.5 text-ink-faint font-body">{sub}</p>
       )}
     </div>
   );
@@ -289,14 +212,8 @@ function StatCard({
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="mb-5">
-      <h3
-        className="text-sm font-semibold mb-3 pb-1 border-b"
-        style={{
-          color: "var(--text-primary, #333)",
-          borderColor: "var(--border, #e5e5e5)",
-        }}
-      >
+    <div className="mb-8">
+      <h3 className="text-[11px] tracking-[0.15em] uppercase text-ink-muted font-body font-semibold mb-4 pb-2 border-b border-rule">
         {title}
       </h3>
       {children}
@@ -321,16 +238,14 @@ function PLRow({
 }) {
   return (
     <div
-      className={`flex justify-between ${bold ? "font-bold" : ""} ${topBorder ? "border-t pt-1 mt-1" : ""}`}
-      style={{
-        color: negative ? "var(--text-secondary, #888)" : undefined,
-        borderColor: "var(--border, #ddd)",
-      }}
+      className={`flex justify-between py-0.5 ${bold ? "font-semibold" : ""} ${topBorder ? "border-t border-rule pt-1.5 mt-1" : ""} ${negative ? "text-ink-muted" : ""}`}
     >
-      <span>
+      <span className="font-body text-sm">
         <OptionalTooltip label={label} tip={tip} />
       </span>
-      <span className={bold ? "font-bold" : "font-medium"}>
+      <span
+        className={`tabular-nums font-body text-sm ${bold ? "font-semibold" : ""}`}
+      >
         {negative ? "−" : ""}
         {value}
       </span>
@@ -348,16 +263,10 @@ function PLSummary({
   const pos = snapshot.cashFlow >= 0;
   return (
     <div>
-      <h4
-        className="text-xs font-semibold mb-2 mt-3 pb-1 border-b"
-        style={{
-          color: "var(--text-secondary, #666)",
-          borderColor: "var(--border, #e5e5e5)",
-        }}
-      >
+      <h4 className="text-[11px] tracking-wide uppercase text-ink-muted font-body font-semibold mb-1.5 mt-4 pb-1 border-b border-rule-light">
         {title}
       </h4>
-      <div className="space-y-1 text-sm">
+      <div className="space-y-0.5 text-sm">
         <PLRow
           label="Gross Income"
           value={`$${formatNumber(snapshot.grossAnnual)}`}
@@ -381,17 +290,39 @@ function PLSummary({
           />
         )}
         <div
-          className="flex justify-between border-t pt-1 mt-1 font-bold"
-          style={{
-            borderColor: "var(--border, #ddd)",
-            color: pos ? "#16a34a" : "#dc2626",
-          }}
+          className={`flex justify-between border-t border-rule pt-1.5 mt-1 font-semibold ${pos ? "text-gain" : "text-loss"}`}
         >
-          <span>Cash Flow</span>
-          <span>{formatCurrency(snapshot.cashFlow)}</span>
+          <span className="font-body text-sm">Cash Flow</span>
+          <span className="font-display text-base tabular-nums">
+            {formatCurrency(snapshot.cashFlow)}
+          </span>
         </div>
       </div>
     </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-4 py-1.5 text-sm font-body font-medium transition-colors ${
+        active
+          ? "text-ink border-b-2 border-ink"
+          : "text-ink-muted hover:text-ink border-b-2 border-transparent"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -408,13 +339,11 @@ function ToggleButton({
     <button
       type="button"
       onClick={onClick}
-      className="flex-1 py-2 rounded-lg text-sm font-medium"
-      style={{
-        background: active
-          ? "var(--text-primary, #222)"
-          : "var(--bg-card, #f0f0f0)",
-        color: active ? "#fff" : "var(--text-secondary, #666)",
-      }}
+      className={`flex-1 py-2 text-sm font-body font-medium transition-colors border ${
+        active
+          ? "bg-ink text-paper border-ink"
+          : "bg-transparent text-ink-muted border-rule hover:border-ink-faint"
+      }`}
     >
       {children}
     </button>
@@ -445,29 +374,21 @@ function ScenarioPanel({
   onNameChange: (name: string) => void;
 }) {
   return (
-    <div
-      className="rounded-xl p-4 mb-6"
-      style={{
-        background: "var(--bg-card, #f7f7f7)",
-        border: "1px solid var(--border, #e0e0e0)",
-      }}
-    >
-      <h3 className="text-sm font-semibold mb-3">Scenarios</h3>
+    <div className="mb-8 pb-6 border-b border-rule">
+      <h3 className="text-[11px] tracking-[0.15em] uppercase text-ink-muted font-body font-semibold mb-3">
+        Scenarios
+      </h3>
       <div className="flex flex-wrap gap-2 mb-3">
         {scenarios.map((s) => (
           <div key={s.id} className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => onLoad(s.id)}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium"
-              style={{
-                background:
-                  s.id === activeId
-                    ? "var(--text-primary, #222)"
-                    : "var(--bg-input, #fff)",
-                color: s.id === activeId ? "#fff" : "var(--text-primary, #222)",
-                border: "1px solid var(--border, #ccc)",
-              }}
+              className={`px-3 py-1 text-sm font-body border transition-colors ${
+                s.id === activeId
+                  ? "bg-ink text-paper border-ink"
+                  : "bg-transparent text-ink border-rule hover:border-ink-faint"
+              }`}
             >
               {s.name}
               {s.id === activeId && isDirty ? " *" : ""}
@@ -475,8 +396,7 @@ function ScenarioPanel({
             <button
               type="button"
               onClick={() => onDelete(s.id)}
-              className="text-xs px-1.5 py-1 rounded"
-              style={{ color: "var(--text-secondary, #888)" }}
+              className="text-xs px-1 py-0.5 text-ink-faint hover:text-loss transition-colors"
               title="Delete scenario"
             >
               ✕
@@ -484,33 +404,24 @@ function ScenarioPanel({
           </div>
         ))}
         {scenarios.length === 0 && (
-          <p
-            className="text-xs"
-            style={{ color: "var(--text-secondary, #888)" }}
-          >
-            No saved scenarios yet
+          <p className="text-xs text-ink-faint font-body italic">
+            No saved scenarios
           </p>
         )}
       </div>
       <div className="flex gap-2 items-center flex-wrap">
         <input
           type="text"
-          placeholder="Scenario name…"
+          placeholder="Scenario name..."
           value={scenarioName}
           onChange={(e) => onNameChange(e.target.value)}
-          className="rounded-lg border px-3 py-1.5 text-sm outline-none"
-          style={{
-            borderColor: "var(--border, #ddd)",
-            background: "var(--bg-input, #fff)",
-            color: "var(--text-primary, #222)",
-            minWidth: 160,
-          }}
+          className="border-b border-rule bg-transparent px-1 py-1 text-sm font-body text-ink outline-none focus:border-ink transition-colors"
+          style={{ minWidth: 160 }}
         />
         <button
           type="button"
           onClick={onSaveNew}
-          className="px-3 py-1.5 rounded-lg text-sm font-medium"
-          style={{ background: "#2563eb", color: "#fff" }}
+          className="px-3 py-1 text-sm font-body font-medium bg-accent text-paper hover:opacity-90 transition-opacity"
         >
           Save as New
         </button>
@@ -518,8 +429,7 @@ function ScenarioPanel({
           <button
             type="button"
             onClick={onUpdate}
-            className="px-3 py-1.5 rounded-lg text-sm font-medium"
-            style={{ background: "#16a34a", color: "#fff" }}
+            className="px-3 py-1 text-sm font-body font-medium bg-gain text-paper hover:opacity-90 transition-opacity"
           >
             Update &ldquo;{activeName}&rdquo;
           </button>
@@ -604,54 +514,29 @@ export default function App() {
   }, [results.yearSnapshots]);
 
   return (
-    <div
-      style={{
-        fontFamily: "system-ui, sans-serif",
-        color: "var(--text-primary, #222)",
-        maxWidth: 900,
-        margin: "0 auto",
-        padding: 16,
-      }}
-    >
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-1">
-          CDMX Rental Profitability Calculator
-        </h1>
-        <p className="text-sm" style={{ color: "var(--text-secondary, #666)" }}>
-          All amounts in MXN pesos · hover or tap{" "}
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 15,
-              height: 15,
-              borderRadius: "50%",
-              fontSize: 10,
-              fontWeight: 700,
-              background: "var(--border, #ccc)",
-              color: "var(--text-secondary, #666)",
-            }}
-          >
-            ?
-          </span>{" "}
-          for definitions
+    <div className="font-body text-ink max-w-[920px] mx-auto px-5 py-8">
+      <header className="mb-8">
+        <p className="text-[11px] tracking-[0.2em] uppercase text-ink-muted font-body mb-1">
+          CDMX Investment Analysis
         </p>
-        <div className="flex gap-2 mt-3">
-          <ToggleButton
+        <h1 className="text-3xl font-display text-ink leading-tight">
+          Rental Profitability Calculator
+        </h1>
+        <div className="flex gap-0 mt-5 border-b border-rule">
+          <TabButton
             active={view === "calculator"}
             onClick={() => setView("calculator")}
           >
             Calculator
-          </ToggleButton>
-          <ToggleButton
+          </TabButton>
+          <TabButton
             active={view === "report"}
             onClick={() => setView("report")}
           >
             Report
-          </ToggleButton>
+          </TabButton>
         </div>
-      </div>
+      </header>
 
       {view === "report" ? (
         <Report inputs={inputs} results={results} />
@@ -670,47 +555,40 @@ export default function App() {
             onNameChange={setScenarioName}
           />
 
-          <div
-            className="grid grid-cols-2 gap-3 mb-6"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-            }}
-          >
-            <StatCard
+          <div className="grid grid-cols-2 gap-x-8 gap-y-2 mb-10 sm:grid-cols-4">
+            <Metric
               label="Monthly Cash Flow"
               value={formatCurrency(results.monthlyCashFlow)}
               positive={cashFlowPositive}
               tip="The money left each month after subtracting all expenses and debt payments from rental income. Positive = profit, negative = loss."
             />
-            <StatCard
+            <Metric
               label="Cap Rate"
               value={formatPercent(results.capRatePct)}
               sub="NOI / Total Investment"
               positive={results.capRatePct >= 5}
               tip="Capitalization Rate measures a property's return without financing. It's the annual NOI divided by total investment cost. Higher = better. 5%+ is generally considered decent."
             />
-            <StatCard
-              label="Cash-on-Cash Return"
+            <Metric
+              label="Cash-on-Cash"
               value={formatPercent(results.cashOnCashPct)}
               sub="Annual CF / Cash Invested"
               positive={results.cashOnCashPct >= 8}
               tip="Measures the annual return on the actual cash you put in (not the property's full value). Useful when using leverage. 8%+ is often a good benchmark."
             />
-            <StatCard
+            <Metric
               label={`Total Return (${form.holdYears}yr)`}
               value={formatPercent(results.totalReturnPct)}
-              sub={`≈ ${formatPercent(results.annualizedReturnPct)} annualized`}
+              sub={`${formatPercent(results.annualizedReturnPct)} ann.`}
               positive={results.annualizedReturnPct >= 10}
               tip="Combines all cash flow over the hold period plus projected appreciation gains, divided by your cash invested. Shows the big-picture profitability of the deal."
             />
           </div>
 
           <div
+            className="grid gap-x-12 gap-y-0"
             style={{
-              display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: 24,
             }}
           >
             <div>
@@ -774,19 +652,18 @@ export default function App() {
                       compact
                       tip="How many years to repay the loan. Longer terms = lower monthly payments but more interest paid overall."
                     />
-                    <p
-                      className="text-xs mb-2"
-                      style={{ color: "var(--text-secondary, #888)" }}
-                    >
+                    <p className="text-[11px] mb-3 text-ink-muted font-body">
                       Monthly payment:{" "}
-                      <strong>${formatNumber(results.monthlyMortgage)}</strong>
+                      <strong className="text-ink font-display text-sm">
+                        ${formatNumber(results.monthlyMortgage)}
+                      </strong>
                     </p>
                   </>
                 )}
               </Section>
 
               <Section title="Rental Income">
-                <div className="flex gap-2 mb-3">
+                <div className="flex gap-0 mb-4">
                   <ToggleButton
                     active={!form.isShortTerm}
                     onClick={() => set("isShortTerm")(false)}
@@ -899,7 +776,7 @@ export default function App() {
                 )}
               </Section>
 
-              <Section title="Appreciation & Hold Period">
+              <Section title="Projections">
                 <NumberInput
                   label="Annual Appreciation"
                   value={form.appreciationPct}
@@ -923,14 +800,10 @@ export default function App() {
                 />
               </Section>
 
-              <div
-                className="rounded-xl p-4"
-                style={{
-                  background: "var(--bg-card, #f5f5f5)",
-                  border: "1px solid var(--border, #e0e0e0)",
-                }}
-              >
-                <h3 className="text-sm font-semibold mb-3">P&L by Year</h3>
+              <div className="border-t border-rule pt-6">
+                <h3 className="text-[11px] tracking-[0.15em] uppercase text-ink-muted font-body font-semibold mb-1">
+                  P&L by Year
+                </h3>
                 {plSnapshots.map(({ title, snapshot }) => (
                   <PLSummary
                     key={snapshot.year}
@@ -938,10 +811,7 @@ export default function App() {
                     snapshot={snapshot}
                   />
                 ))}
-                <div
-                  className="mt-4 pt-3 border-t text-sm space-y-1"
-                  style={{ borderColor: "var(--border, #ddd)" }}
-                >
+                <div className="mt-5 pt-4 border-t border-rule space-y-1 text-sm">
                   <PLRow
                     label="Total Cash Invested"
                     value={`$${formatNumber(results.cashInvested)}`}
@@ -957,8 +827,8 @@ export default function App() {
                     value={`$${formatNumber(results.futureValue)}`}
                     tip="Projected property value based on your assumed annual appreciation rate, compounded over the hold period."
                   />
-                  <div className="flex justify-between font-bold">
-                    <span>
+                  <div className="flex justify-between pt-2 mt-1 border-t border-rule">
+                    <span className="font-body text-sm font-semibold">
                       <Tooltip
                         term={`Total Profit (${form.holdYears}yr)`}
                         tip="All cash flow earned over the hold period plus the gain in property value (appreciation). Does not account for selling costs or taxes."
@@ -967,9 +837,7 @@ export default function App() {
                       </Tooltip>
                     </span>
                     <span
-                      style={{
-                        color: results.totalProfit >= 0 ? "#16a34a" : "#dc2626",
-                      }}
+                      className={`font-display text-lg tabular-nums ${results.totalProfit >= 0 ? "text-gain" : "text-loss"}`}
                     >
                       {formatCurrency(results.totalProfit)}
                     </span>

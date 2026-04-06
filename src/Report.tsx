@@ -7,6 +7,19 @@ interface ReportProps {
   results: CalculatorResults;
 }
 
+const COLORS = {
+  gain: "oklch(0.45 0.15 155)",
+  loss: "oklch(0.50 0.18 25)",
+  accent: "oklch(0.42 0.12 250)",
+  highlight: "oklch(0.55 0.14 85)",
+  ink: "oklch(0.22 0.02 55)",
+  inkSoft: "oklch(0.45 0.015 55)",
+  inkMuted: "oklch(0.60 0.01 55)",
+  inkFaint: "oklch(0.75 0.008 55)",
+  rule: "oklch(0.85 0.01 55)",
+  paper: "oklch(0.97 0.005 75)",
+};
+
 function BarChart({
   data,
   label,
@@ -20,24 +33,21 @@ function BarChart({
 
   if (data.length === 0) return null;
   const maxAbs = Math.max(...data.map((d) => Math.abs(d.value)), 1);
-  const barHeight = 24;
-  const gap = 6;
-  const labelWidth = 50;
-  const chartWidth = 320;
-  const svgHeight = data.length * (barHeight + gap) + 28;
+  const barHeight = 22;
+  const gap = 4;
+  const labelWidth = 36;
+  const chartWidth = 280;
+  const svgHeight = data.length * (barHeight + gap) + 8;
 
   return (
-    <div className="mb-6">
-      <h4
-        className="text-xs font-semibold mb-2"
-        style={{ color: "var(--text-secondary, #666)" }}
-      >
+    <div className="mb-8">
+      <h4 className="text-[11px] tracking-[0.15em] uppercase text-ink-muted font-body font-semibold mb-3">
         {label}
       </h4>
       <svg
         width="100%"
-        viewBox={`0 0 ${labelWidth + chartWidth + 120} ${svgHeight}`}
-        style={{ maxWidth: 520 }}
+        viewBox={`0 0 ${labelWidth + chartWidth + 110} ${svgHeight}`}
+        style={{ maxWidth: 460 }}
         onPointerMove={(e) => {
           const svg = e.currentTarget;
           const pt = svg.createSVGPoint();
@@ -54,34 +64,36 @@ function BarChart({
           const y = i * (barHeight + gap);
           const barW = (Math.abs(d.value) / maxAbs) * chartWidth;
           const isNeg = d.value < 0;
-          const fillColor = isNeg ? "#dc2626" : color;
-          const isHovered = hovered === i;
+          const fillColor = isNeg ? COLORS.loss : color;
+          const isHov = hovered === i;
           return (
             <g key={d.label}>
               <text
-                x={labelWidth - 6}
+                x={labelWidth - 4}
                 y={y + barHeight / 2 + 4}
                 textAnchor="end"
-                fontSize={11}
-                fill="var(--text-secondary, #888)"
+                fontSize={10}
+                fontFamily="'DM Sans', system-ui"
+                fill={COLORS.inkMuted}
               >
                 {d.label}
               </text>
               <rect
                 x={labelWidth}
-                y={y}
+                y={y + 1}
                 width={Math.max(barW, 2)}
-                height={barHeight}
-                rx={4}
+                height={barHeight - 2}
+                rx={2}
                 fill={fillColor}
-                opacity={isHovered ? 1 : 0.8}
+                opacity={isHov ? 1 : 0.75}
               />
               <text
                 x={labelWidth + barW + 6}
                 y={y + barHeight / 2 + 4}
                 fontSize={11}
-                fontWeight={isHovered ? 700 : 400}
-                fill={isNeg ? "#dc2626" : "var(--text-primary, #333)"}
+                fontFamily="'DM Serif Display', Georgia"
+                fontWeight={isHov ? 700 : 400}
+                fill={isNeg ? COLORS.loss : COLORS.ink}
               >
                 {formatCurrency(d.value)}
               </text>
@@ -113,12 +125,12 @@ function LineChart({
   const maxVal = Math.max(dataMax, 0);
   const range = maxVal - minVal || 1;
 
-  const padLeft = 80;
-  const padRight = 20;
-  const padTop = 20;
-  const padBottom = 30;
-  const chartW = 400;
-  const chartH = 180;
+  const padLeft = 72;
+  const padRight = 16;
+  const padTop = 16;
+  const padBottom = 28;
+  const chartW = 360;
+  const chartH = 160;
   const svgW = padLeft + chartW + padRight;
   const svgH = padTop + chartH + padBottom;
 
@@ -133,21 +145,17 @@ function LineChart({
     (_, i) => minVal + (range / gridLines) * i,
   );
 
-  const hasZeroLine =
-    minVal < 0 && maxVal > 0 && !gridValues.some((v) => Math.abs(v) < 0.01);
+  const showZero = minVal < 0 && maxVal > 0;
 
   return (
-    <div className="mb-6">
-      <h4
-        className="text-xs font-semibold mb-2"
-        style={{ color: "var(--text-secondary, #666)" }}
-      >
+    <div className="mb-8">
+      <h4 className="text-[11px] tracking-[0.15em] uppercase text-ink-muted font-body font-semibold mb-3">
         {title}
       </h4>
       <svg
         width="100%"
         viewBox={`0 0 ${svgW} ${svgH}`}
-        style={{ maxWidth: 540 }}
+        style={{ maxWidth: 480 }}
         onPointerMove={(e) => {
           const svg = e.currentTarget;
           const pt = svg.createSVGPoint();
@@ -173,54 +181,31 @@ function LineChart({
               y1={toY(v)}
               x2={padLeft + chartW}
               y2={toY(v)}
-              stroke="var(--border, #e0e0e0)"
-              strokeWidth={1}
+              stroke={COLORS.rule}
+              strokeWidth={0.5}
             />
             <text
               x={padLeft - 8}
-              y={toY(v) + 4}
+              y={toY(v) + 3}
               textAnchor="end"
-              fontSize={10}
-              fill="var(--text-secondary, #888)"
+              fontSize={9}
+              fontFamily="'DM Sans', system-ui"
+              fill={COLORS.inkFaint}
             >
               ${formatNumber(v)}
             </text>
           </g>
         ))}
 
-        {hasZeroLine && (
-          <g>
-            <line
-              x1={padLeft}
-              y1={toY(0)}
-              x2={padLeft + chartW}
-              y2={toY(0)}
-              stroke="var(--text-secondary, #999)"
-              strokeWidth={1.5}
-              strokeDasharray="4 3"
-            />
-            <text
-              x={padLeft - 8}
-              y={toY(0) + 4}
-              textAnchor="end"
-              fontSize={10}
-              fontWeight={600}
-              fill="var(--text-secondary, #666)"
-            >
-              $0
-            </text>
-          </g>
-        )}
-
-        {minVal <= 0 && maxVal >= 0 && !hasZeroLine && (
+        {showZero && (
           <line
             x1={padLeft}
             y1={toY(0)}
             x2={padLeft + chartW}
             y2={toY(0)}
-            stroke="var(--text-secondary, #999)"
-            strokeWidth={1.5}
-            strokeDasharray="4 3"
+            stroke={COLORS.inkMuted}
+            strokeWidth={1}
+            strokeDasharray="3 2"
           />
         )}
 
@@ -228,10 +213,11 @@ function LineChart({
           <text
             key={l}
             x={toX(i)}
-            y={svgH - 6}
+            y={svgH - 4}
             textAnchor="middle"
-            fontSize={10}
-            fill="var(--text-secondary, #888)"
+            fontSize={9}
+            fontFamily="'DM Sans', system-ui"
+            fill={COLORS.inkFaint}
           >
             {l}
           </text>
@@ -245,21 +231,21 @@ function LineChart({
                 points={points}
                 fill="none"
                 stroke={s.color}
-                strokeWidth={2.5}
+                strokeWidth={2}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
               {s.data.map((v, i) => {
                 const isNeg = v < 0;
-                const pointColor = isNeg ? "#dc2626" : s.color;
+                const pointColor = isNeg ? COLORS.loss : s.color;
                 return (
                   <circle
                     key={`${s.name}-${labels[i]}`}
                     cx={toX(i)}
                     cy={toY(v)}
-                    r={hovered === i ? 6 : 3.5}
+                    r={hovered === i ? 5 : 3}
                     fill={pointColor}
-                    stroke={hovered === i ? "#fff" : "none"}
+                    stroke={hovered === i ? COLORS.paper : "none"}
                     strokeWidth={2}
                   />
                 );
@@ -274,9 +260,9 @@ function LineChart({
             y1={padTop}
             x2={toX(hovered)}
             y2={padTop + chartH}
-            stroke="var(--text-secondary, #aaa)"
-            strokeWidth={1}
-            strokeDasharray="3 2"
+            stroke={COLORS.inkFaint}
+            strokeWidth={0.5}
+            strokeDasharray="2 2"
             pointerEvents="none"
           />
         )}
@@ -285,9 +271,9 @@ function LineChart({
           <g pointerEvents="none">
             {(() => {
               const tooltipX = toX(hovered);
-              const tooltipW = 130;
-              const lineH = 16;
-              const tooltipH = 6 + series.length * lineH + 6;
+              const tooltipW = 125;
+              const lineH = 15;
+              const tooltipH = 4 + series.length * lineH + 4;
               const flipX = tooltipX + tooltipW + 10 > svgW;
               const tx = flipX ? tooltipX - tooltipW - 10 : tooltipX + 10;
               const ty = padTop + 4;
@@ -298,16 +284,17 @@ function LineChart({
                     y={ty}
                     width={tooltipW}
                     height={tooltipH}
-                    rx={6}
-                    fill="var(--text-primary, #222)"
-                    opacity={0.92}
+                    rx={3}
+                    fill={COLORS.ink}
+                    opacity={0.94}
                   />
                   <text
-                    x={tx + 8}
-                    y={ty + 16}
-                    fontSize={10}
+                    x={tx + 7}
+                    y={ty + 13}
+                    fontSize={9}
                     fontWeight={700}
-                    fill="#fff"
+                    fontFamily="'DM Sans', system-ui"
+                    fill={COLORS.paper}
                   >
                     {labels[hovered]}
                   </text>
@@ -317,10 +304,13 @@ function LineChart({
                     return (
                       <text
                         key={s.name}
-                        x={tx + 8}
-                        y={ty + 16 + (si + 1) * lineH}
-                        fontSize={10}
-                        fill={isNeg ? "#fca5a5" : "#d1d5db"}
+                        x={tx + 7}
+                        y={ty + 13 + (si + 1) * lineH}
+                        fontSize={9}
+                        fontFamily="'DM Sans', system-ui"
+                        fill={
+                          isNeg ? "oklch(0.75 0.12 25)" : "oklch(0.82 0.01 55)"
+                        }
                       >
                         <tspan fill={s.color}>&#9679; </tspan>
                         {s.name}: {formatCurrency(val)}
@@ -333,21 +323,17 @@ function LineChart({
           </g>
         )}
       </svg>
-      <div className="flex gap-4 mt-1 ml-20">
+      <div className="flex gap-4 mt-1.5 ml-[72px]">
         {series.map((s) => (
-          <div key={s.name} className="flex items-center gap-1 text-xs">
+          <div
+            key={s.name}
+            className="flex items-center gap-1.5 text-[10px] font-body text-ink-muted"
+          >
             <span
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: 2,
-                background: s.color,
-                display: "inline-block",
-              }}
+              className="inline-block w-2.5 h-2.5 rounded-sm"
+              style={{ background: s.color }}
             />
-            <span style={{ color: "var(--text-secondary, #666)" }}>
-              {s.name}
-            </span>
+            {s.name}
           </div>
         ))}
       </div>
@@ -378,7 +364,7 @@ export default function Report({ inputs, results }: ReportProps) {
 
   if (snapshots.length === 0) {
     return (
-      <p className="text-sm" style={{ color: "var(--text-secondary, #888)" }}>
+      <p className="text-sm text-ink-muted font-body italic">
         Set a hold period of at least 1 year to see the report.
       </p>
     );
@@ -386,82 +372,50 @@ export default function Report({ inputs, results }: ReportProps) {
 
   return (
     <div>
-      <div
-        className="grid gap-3 mb-6"
-        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}
-      >
-        <div
-          className="rounded-xl p-4"
-          style={{ background: "var(--bg-card, #f7f7f7)" }}
-        >
-          <p
-            className="text-xs font-medium mb-1"
-            style={{ color: "var(--text-secondary, #888)" }}
-          >
+      <div className="grid grid-cols-2 gap-x-8 gap-y-3 mb-10 sm:grid-cols-4">
+        <div>
+          <p className="text-[11px] tracking-wide uppercase text-ink-muted font-body mb-1">
             Total Investment
           </p>
-          <p className="text-xl font-bold">
+          <p className="text-2xl font-display text-ink">
             ${formatNumber(results.totalInvestment)}
           </p>
         </div>
-        <div
-          className="rounded-xl p-4"
-          style={{ background: "var(--bg-card, #f7f7f7)" }}
-        >
-          <p
-            className="text-xs font-medium mb-1"
-            style={{ color: "var(--text-secondary, #888)" }}
-          >
+        <div>
+          <p className="text-[11px] tracking-wide uppercase text-ink-muted font-body mb-1">
             Cash Invested
           </p>
-          <p className="text-xl font-bold">
+          <p className="text-2xl font-display text-ink">
             ${formatNumber(results.cashInvested)}
           </p>
         </div>
-        <div
-          className="rounded-xl p-4"
-          style={{ background: "var(--bg-card, #f7f7f7)" }}
-        >
-          <p
-            className="text-xs font-medium mb-1"
-            style={{ color: "var(--text-secondary, #888)" }}
-          >
+        <div>
+          <p className="text-[11px] tracking-wide uppercase text-ink-muted font-body mb-1">
             Cap Rate
           </p>
-          <p className="text-xl font-bold">
+          <p className="text-2xl font-display text-ink">
             {formatPercent(results.capRatePct)}
           </p>
         </div>
-        <div
-          className="rounded-xl p-4"
-          style={{ background: "var(--bg-card, #f7f7f7)" }}
-        >
-          <p
-            className="text-xs font-medium mb-1"
-            style={{ color: "var(--text-secondary, #888)" }}
-          >
+        <div>
+          <p className="text-[11px] tracking-wide uppercase text-ink-muted font-body mb-1">
             Total Profit ({inputs.holdYears}yr)
           </p>
           <p
-            className="text-xl font-bold"
-            style={{ color: results.totalProfit >= 0 ? "#16a34a" : "#dc2626" }}
+            className={`text-2xl font-display ${results.totalProfit >= 0 ? "text-gain" : "text-loss"}`}
           >
             {formatCurrency(results.totalProfit)}
           </p>
-          <p
-            className="text-xs mt-0.5"
-            style={{ color: "var(--text-secondary, #999)" }}
-          >
+          <p className="text-[11px] mt-0.5 text-ink-faint font-body">
             {formatPercent(results.annualizedReturnPct)} annualized
           </p>
         </div>
       </div>
 
       <div
+        className="grid gap-x-12"
         style={{
-          display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: 24,
         }}
       >
         <div>
@@ -472,18 +426,18 @@ export default function Report({ inputs, results }: ReportProps) {
               {
                 name: "NOI",
                 data: snapshots.map((s) => s.noi),
-                color: "#2563eb",
+                color: COLORS.accent,
               },
               {
                 name: "Cash Flow",
                 data: snapshots.map((s) => s.cashFlow),
-                color: "#16a34a",
+                color: COLORS.gain,
               },
             ]}
           />
           <BarChart
             label="Cash Flow by Year"
-            color="#16a34a"
+            color={COLORS.gain}
             data={snapshots.map((s) => ({
               label: `Yr ${s.year}`,
               value: s.cashFlow,
@@ -498,18 +452,18 @@ export default function Report({ inputs, results }: ReportProps) {
               {
                 name: "Property Value",
                 data: propertyValues,
-                color: "#7c3aed",
+                color: COLORS.highlight,
               },
               {
                 name: "Cumulative CF",
                 data: cumulativeBySYear,
-                color: "#16a34a",
+                color: COLORS.gain,
               },
             ]}
           />
           <BarChart
             label="Gross Income by Year"
-            color="#2563eb"
+            color={COLORS.accent}
             data={snapshots.map((s) => ({
               label: `Yr ${s.year}`,
               value: s.grossAnnual,
@@ -518,90 +472,58 @@ export default function Report({ inputs, results }: ReportProps) {
         </div>
       </div>
 
-      <div className="mt-6">
-        <h3
-          className="text-sm font-semibold mb-3 pb-1 border-b"
-          style={{
-            color: "var(--text-primary, #333)",
-            borderColor: "var(--border, #e5e5e5)",
-          }}
-        >
+      <div className="mt-10">
+        <h3 className="text-[11px] tracking-[0.15em] uppercase text-ink-muted font-body font-semibold mb-4 pb-2 border-b border-rule">
           Year-by-Year P&L
         </h3>
         <div style={{ overflowX: "auto" }}>
-          <table className="w-full text-sm" style={{ minWidth: 600 }}>
+          <table className="w-full text-sm font-body" style={{ minWidth: 560 }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid var(--border, #ddd)" }}>
-                <th
-                  className="text-left py-2 pr-3 font-semibold"
-                  style={{ color: "var(--text-secondary, #666)" }}
-                >
+              <tr className="border-b-2 border-rule">
+                <th className="text-left py-2 pr-3 text-[11px] tracking-wide uppercase text-ink-muted font-semibold">
                   Year
                 </th>
-                <th
-                  className="text-right py-2 px-3 font-semibold"
-                  style={{ color: "var(--text-secondary, #666)" }}
-                >
+                <th className="text-right py-2 px-3 text-[11px] tracking-wide uppercase text-ink-muted font-semibold">
                   Gross Income
                 </th>
-                <th
-                  className="text-right py-2 px-3 font-semibold"
-                  style={{ color: "var(--text-secondary, #666)" }}
-                >
+                <th className="text-right py-2 px-3 text-[11px] tracking-wide uppercase text-ink-muted font-semibold">
                   Expenses
                 </th>
-                <th
-                  className="text-right py-2 px-3 font-semibold"
-                  style={{ color: "var(--text-secondary, #666)" }}
-                >
+                <th className="text-right py-2 px-3 text-[11px] tracking-wide uppercase text-ink-muted font-semibold">
                   NOI
                 </th>
                 {results.mortgageAnnual > 0 && (
-                  <th
-                    className="text-right py-2 px-3 font-semibold"
-                    style={{ color: "var(--text-secondary, #666)" }}
-                  >
+                  <th className="text-right py-2 px-3 text-[11px] tracking-wide uppercase text-ink-muted font-semibold">
                     Debt Service
                   </th>
                 )}
-                <th
-                  className="text-right py-2 pl-3 font-semibold"
-                  style={{ color: "var(--text-secondary, #666)" }}
-                >
+                <th className="text-right py-2 pl-3 text-[11px] tracking-wide uppercase text-ink-muted font-semibold">
                   Cash Flow
                 </th>
               </tr>
             </thead>
             <tbody>
               {snapshots.map((s) => (
-                <tr
-                  key={s.year}
-                  style={{ borderBottom: "1px solid var(--border, #eee)" }}
-                >
-                  <td className="py-1.5 pr-3 font-medium">{s.year}</td>
-                  <td className="py-1.5 px-3 text-right">
+                <tr key={s.year} className="border-b border-rule-light">
+                  <td className="py-2 pr-3 font-semibold tabular-nums">
+                    {s.year}
+                  </td>
+                  <td className="py-2 px-3 text-right tabular-nums">
                     ${formatNumber(s.grossAnnual)}
                   </td>
-                  <td
-                    className="py-1.5 px-3 text-right"
-                    style={{ color: "var(--text-secondary, #888)" }}
-                  >
+                  <td className="py-2 px-3 text-right tabular-nums text-ink-muted">
                     ${formatNumber(s.totalExpenses)}
                   </td>
-                  <td className="py-1.5 px-3 text-right font-medium">
+                  <td className="py-2 px-3 text-right tabular-nums font-semibold">
                     ${formatNumber(s.noi)}
                   </td>
                   {results.mortgageAnnual > 0 && (
-                    <td
-                      className="py-1.5 px-3 text-right"
-                      style={{ color: "var(--text-secondary, #888)" }}
-                    >
+                    <td className="py-2 px-3 text-right tabular-nums text-ink-muted">
                       ${formatNumber(s.mortgageAnnual)}
                     </td>
                   )}
                   <td
-                    className="py-1.5 pl-3 text-right font-bold"
-                    style={{ color: s.cashFlow >= 0 ? "#16a34a" : "#dc2626" }}
+                    className={`py-2 pl-3 text-right font-display text-base tabular-nums ${s.cashFlow >= 0 ? "text-gain" : "text-loss"}`}
                   >
                     {formatCurrency(s.cashFlow)}
                   </td>
@@ -609,40 +531,30 @@ export default function Report({ inputs, results }: ReportProps) {
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ borderTop: "2px solid var(--border, #ddd)" }}>
-                <td className="py-2 pr-3 font-bold">Total</td>
-                <td className="py-2 px-3 text-right font-bold">
+              <tr className="border-t-2 border-rule">
+                <td className="py-2.5 pr-3 font-bold">Total</td>
+                <td className="py-2.5 px-3 text-right font-bold tabular-nums">
                   $
                   {formatNumber(
                     snapshots.reduce((a, s) => a + s.grossAnnual, 0),
                   )}
                 </td>
-                <td
-                  className="py-2 px-3 text-right font-bold"
-                  style={{ color: "var(--text-secondary, #888)" }}
-                >
+                <td className="py-2.5 px-3 text-right font-bold tabular-nums text-ink-muted">
                   $
                   {formatNumber(
                     snapshots.reduce((a, s) => a + s.totalExpenses, 0),
                   )}
                 </td>
-                <td className="py-2 px-3 text-right font-bold">
+                <td className="py-2.5 px-3 text-right font-bold tabular-nums">
                   ${formatNumber(snapshots.reduce((a, s) => a + s.noi, 0))}
                 </td>
                 {results.mortgageAnnual > 0 && (
-                  <td
-                    className="py-2 px-3 text-right font-bold"
-                    style={{ color: "var(--text-secondary, #888)" }}
-                  >
+                  <td className="py-2.5 px-3 text-right font-bold tabular-nums text-ink-muted">
                     ${formatNumber(results.mortgageAnnual * inputs.holdYears)}
                   </td>
                 )}
                 <td
-                  className="py-2 pl-3 text-right font-bold"
-                  style={{
-                    color:
-                      results.cumulativeCashFlow >= 0 ? "#16a34a" : "#dc2626",
-                  }}
+                  className={`py-2.5 pl-3 text-right font-display text-lg font-bold tabular-nums ${results.cumulativeCashFlow >= 0 ? "text-gain" : "text-loss"}`}
                 >
                   {formatCurrency(results.cumulativeCashFlow)}
                 </td>
