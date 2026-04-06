@@ -43,6 +43,8 @@ const DEFAULT_INPUTS: CalculatorInputs = {
   platformFeePct: 3,
   appreciationPct: 7.5,
   rentIncreasePct: 4,
+  expenseInflationPct: 4,
+  sellingCostPct: 5,
   holdYears: 7,
 };
 
@@ -75,6 +77,8 @@ function formToInputs(form: FormState): CalculatorInputs {
     platformFeePct: toNumber(form.platformFeePct),
     appreciationPct: toNumber(form.appreciationPct),
     rentIncreasePct: toNumber(form.rentIncreasePct),
+    expenseInflationPct: toNumber(form.expenseInflationPct),
+    sellingCostPct: toNumber(form.sellingCostPct),
     holdYears: toNumber(form.holdYears),
   };
 }
@@ -268,7 +272,7 @@ function PLSummary({
       </h4>
       <div className="space-y-0.5 text-sm">
         <PLRow
-          label="Gross Income"
+          label="Effective Income"
           value={`$${formatNumber(snapshot.grossAnnual)}`}
         />
         <PLRow
@@ -565,9 +569,9 @@ export default function App() {
             <Metric
               label="Cap Rate"
               value={formatPercent(results.capRatePct)}
-              sub="NOI / Total Investment"
+              sub="NOI / Purchase Price"
               positive={results.capRatePct >= 5}
-              tip="Capitalization Rate measures a property's return without financing. It's the annual NOI divided by total investment cost. Higher = better. 5%+ is generally considered decent."
+              tip="Capitalization Rate measures a property's return without financing. It's the annual NOI divided by purchase price. Higher = better. 5%+ is generally considered decent. Comparable to market-listed cap rates."
             />
             <Metric
               label="Cash-on-Cash"
@@ -581,7 +585,7 @@ export default function App() {
               value={formatPercent(results.totalReturnPct)}
               sub={`${formatPercent(results.annualizedReturnPct)} ann.`}
               positive={results.annualizedReturnPct >= 10}
-              tip="Combines all cash flow over the hold period plus projected appreciation gains, divided by your cash invested. Shows the big-picture profitability of the deal."
+              tip="Net profit from sale proceeds plus cumulative cash flow, minus all cash invested. Divided by cash invested. Shows the big-picture profitability of the deal."
             />
           </div>
 
@@ -704,14 +708,16 @@ export default function App() {
                     tip="The fixed monthly rent charged to a long-term tenant."
                   />
                 )}
-                <NumberInput
-                  label="Occupancy Rate"
-                  value={form.occupancyPct}
-                  onChange={set("occupancyPct")}
-                  suffix="%"
-                  hint={`Effective monthly: $${formatNumber(results.effectiveMonthly)}`}
-                  tip="Percentage of time the property is rented over a year. Accounts for vacancies, turnover, and seasonal dips. 85–95% is realistic for long-term; 65–80% for short-term."
-                />
+                {!form.isShortTerm && (
+                  <NumberInput
+                    label="Occupancy Rate"
+                    value={form.occupancyPct}
+                    onChange={set("occupancyPct")}
+                    suffix="%"
+                    hint={`Effective monthly: $${formatNumber(results.effectiveMonthly)}`}
+                    tip="Percentage of time the property is rented over a year. Accounts for vacancies and turnover between tenants. 85–95% is realistic for long-term."
+                  />
+                )}
               </Section>
             </div>
 
@@ -792,6 +798,25 @@ export default function App() {
                   tip="Yearly rent growth rate. Conservative: 3.5–4% (CDMX law caps renewals at prior year's inflation). Moderate: 6–8% (resetting to market between tenants). Optimistic: 9–10% (gentrifying areas like Narvarte)."
                 />
                 <NumberInput
+                  label="Annual Expense Inflation"
+                  value={form.expenseInflationPct}
+                  onChange={set("expenseInflationPct")}
+                  suffix="%"
+                  tip="Yearly increase in fixed costs (HOA, predial, insurance, utilities). In Mexico, 3–5% is typical, roughly tracking inflation."
+                />
+                <NumberInput
+                  label="Selling Costs"
+                  value={form.sellingCostPct}
+                  onChange={set("sellingCostPct")}
+                  suffix="% of sale price"
+                  hint={
+                    results.sellingCosts > 0
+                      ? `≈ $${formatNumber(results.sellingCosts)}`
+                      : undefined
+                  }
+                  tip="Costs incurred when selling: agent commissions, notary fees, transfer taxes, and capital gains tax (ISR). In Mexico, 5–8% is typical."
+                />
+                <NumberInput
                   label="Hold Period"
                   value={form.holdYears}
                   onChange={set("holdYears")}
@@ -827,11 +852,19 @@ export default function App() {
                     value={`$${formatNumber(results.futureValue)}`}
                     tip="Projected property value based on your assumed annual appreciation rate, compounded over the hold period."
                   />
+                  {results.sellingCosts > 0 && (
+                    <PLRow
+                      label="Selling Costs"
+                      value={`$${formatNumber(results.sellingCosts)}`}
+                      negative
+                      tip="Estimated costs at sale: agent commissions, notary fees, transfer taxes, and capital gains tax."
+                    />
+                  )}
                   <div className="flex justify-between pt-2 mt-1 border-t border-rule">
                     <span className="font-body text-sm font-semibold">
                       <Tooltip
                         term={`Total Profit (${form.holdYears}yr)`}
-                        tip="All cash flow earned over the hold period plus the gain in property value (appreciation). Does not account for selling costs or taxes."
+                        tip="Sale proceeds (after paying off any remaining loan and selling costs) plus cumulative cash flow, minus all cash invested (down payment, closing costs, rehab, furnishing)."
                       >
                         <span>Total Profit ({form.holdYears}yr)</span>
                       </Tooltip>

@@ -192,7 +192,7 @@ function LineChart({
               fontFamily="'DM Sans', system-ui"
               fill={COLORS.inkFaint}
             >
-              ${formatNumber(v)}
+              {formatCurrency(v)}
             </text>
           </g>
         ))}
@@ -357,9 +357,10 @@ export default function Report({ inputs, results }: ReportProps) {
     () =>
       snapshots.map(
         (s) =>
-          inputs.purchasePrice * (1 + inputs.appreciationPct / 100) ** s.year,
+          results.appreciationBase *
+          (1 + inputs.appreciationPct / 100) ** s.year,
       ),
-    [snapshots, inputs.purchasePrice, inputs.appreciationPct],
+    [snapshots, results.appreciationBase, inputs.appreciationPct],
   );
 
   if (snapshots.length === 0) {
@@ -462,7 +463,7 @@ export default function Report({ inputs, results }: ReportProps) {
             ]}
           />
           <BarChart
-            label="Gross Income by Year"
+            label="Effective Income by Year"
             color={COLORS.accent}
             data={snapshots.map((s) => ({
               label: `Yr ${s.year}`,
@@ -484,7 +485,7 @@ export default function Report({ inputs, results }: ReportProps) {
                   Year
                 </th>
                 <th className="text-right py-2 px-3 text-[11px] tracking-wide uppercase text-ink-muted font-semibold">
-                  Gross Income
+                  Effective Income
                 </th>
                 <th className="text-right py-2 px-3 text-[11px] tracking-wide uppercase text-ink-muted font-semibold">
                   Expenses
@@ -493,9 +494,17 @@ export default function Report({ inputs, results }: ReportProps) {
                   NOI
                 </th>
                 {results.mortgageAnnual > 0 && (
-                  <th className="text-right py-2 px-3 text-[11px] tracking-wide uppercase text-ink-muted font-semibold">
-                    Debt Service
-                  </th>
+                  <>
+                    <th className="text-right py-2 px-3 text-[11px] tracking-wide uppercase text-ink-muted font-semibold">
+                      Principal
+                    </th>
+                    <th className="text-right py-2 px-3 text-[11px] tracking-wide uppercase text-ink-muted font-semibold">
+                      Interest
+                    </th>
+                    <th className="text-right py-2 px-3 text-[11px] tracking-wide uppercase text-ink-muted font-semibold">
+                      Debt Service
+                    </th>
+                  </>
                 )}
                 <th className="text-right py-2 pl-3 text-[11px] tracking-wide uppercase text-ink-muted font-semibold">
                   Cash Flow
@@ -518,9 +527,17 @@ export default function Report({ inputs, results }: ReportProps) {
                     ${formatNumber(s.noi)}
                   </td>
                   {results.mortgageAnnual > 0 && (
-                    <td className="py-2 px-3 text-right tabular-nums text-ink-muted">
-                      ${formatNumber(s.mortgageAnnual)}
-                    </td>
+                    <>
+                      <td className="py-2 px-3 text-right tabular-nums text-ink-muted">
+                        ${formatNumber(s.principalPaid)}
+                      </td>
+                      <td className="py-2 px-3 text-right tabular-nums text-ink-muted">
+                        ${formatNumber(s.interestPaid)}
+                      </td>
+                      <td className="py-2 px-3 text-right tabular-nums text-ink-muted">
+                        ${formatNumber(s.mortgageAnnual)}
+                      </td>
+                    </>
                   )}
                   <td
                     className={`py-2 pl-3 text-right font-display text-base tabular-nums ${s.cashFlow >= 0 ? "text-gain" : "text-loss"}`}
@@ -549,9 +566,26 @@ export default function Report({ inputs, results }: ReportProps) {
                   ${formatNumber(snapshots.reduce((a, s) => a + s.noi, 0))}
                 </td>
                 {results.mortgageAnnual > 0 && (
-                  <td className="py-2.5 px-3 text-right font-bold tabular-nums text-ink-muted">
-                    ${formatNumber(results.mortgageAnnual * inputs.holdYears)}
-                  </td>
+                  <>
+                    <td className="py-2.5 px-3 text-right font-bold tabular-nums text-ink-muted">
+                      $
+                      {formatNumber(
+                        snapshots.reduce((a, s) => a + s.principalPaid, 0),
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-bold tabular-nums text-ink-muted">
+                      $
+                      {formatNumber(
+                        snapshots.reduce((a, s) => a + s.interestPaid, 0),
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-bold tabular-nums text-ink-muted">
+                      $
+                      {formatNumber(
+                        snapshots.reduce((a, s) => a + s.mortgageAnnual, 0),
+                      )}
+                    </td>
+                  </>
                 )}
                 <td
                   className={`py-2.5 pl-3 text-right font-display text-lg font-bold tabular-nums ${results.cumulativeCashFlow >= 0 ? "text-gain" : "text-loss"}`}
