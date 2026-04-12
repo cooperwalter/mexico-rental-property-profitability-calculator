@@ -29,6 +29,7 @@ const DEFAULT_INPUTS: CalculatorInputs = {
   downPaymentPct: 20,
   loanRatePct: 7,
   loanTermYears: 30,
+  loanPaymentType: "amortized",
   monthlyRent: 31_500,
   occupancyPct: 90,
   isShortTerm: false,
@@ -51,7 +52,9 @@ const DEFAULT_INPUTS: CalculatorInputs = {
 type FormState = {
   [K in keyof CalculatorInputs]: CalculatorInputs[K] extends boolean
     ? boolean
-    : FormFieldValue;
+    : CalculatorInputs[K] extends string
+      ? CalculatorInputs[K]
+      : FormFieldValue;
 };
 
 function formToInputs(form: FormState): CalculatorInputs {
@@ -63,6 +66,7 @@ function formToInputs(form: FormState): CalculatorInputs {
     downPaymentPct: toNumber(form.downPaymentPct),
     loanRatePct: toNumber(form.loanRatePct),
     loanTermYears: toNumber(form.loanTermYears),
+    loanPaymentType: form.loanPaymentType,
     monthlyRent: toNumber(form.monthlyRent),
     occupancyPct: toNumber(form.occupancyPct),
     isShortTerm: form.isShortTerm,
@@ -656,11 +660,43 @@ export default function App() {
                       compact
                       tip="How many years to repay the loan. Longer terms = lower monthly payments but more interest paid overall."
                     />
+                    <div className="mb-3">
+                      <p className="text-xs tracking-wide uppercase text-ink-muted mb-1 font-body">
+                        <OptionalTooltip
+                          label="Payment Type"
+                          tip="Amortized: fixed monthly payments that gradually pay down the principal — you build equity each month. Interest-Only: lower monthly payments covering just interest; the full principal is still owed at the end (balloon)."
+                        />
+                      </p>
+                      <div className="flex gap-0">
+                        <ToggleButton
+                          active={form.loanPaymentType === "amortized"}
+                          onClick={() =>
+                            set("loanPaymentType")("amortized")
+                          }
+                        >
+                          Amortized
+                        </ToggleButton>
+                        <ToggleButton
+                          active={form.loanPaymentType === "interestOnly"}
+                          onClick={() =>
+                            set("loanPaymentType")("interestOnly")
+                          }
+                        >
+                          Interest-Only
+                        </ToggleButton>
+                      </div>
+                    </div>
                     <p className="text-[11px] mb-3 text-ink-muted font-body">
                       Monthly payment:{" "}
                       <strong className="text-ink font-display text-sm">
                         ${formatNumber(results.monthlyMortgage)}
                       </strong>
+                      {form.loanPaymentType === "interestOnly" && (
+                        <span className="text-ink-faint">
+                          {" "}
+                          (interest only)
+                        </span>
+                      )}
                     </p>
                   </>
                 )}

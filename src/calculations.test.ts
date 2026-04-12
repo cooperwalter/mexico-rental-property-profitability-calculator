@@ -21,6 +21,7 @@ function makeInputs(
     downPaymentPct: 100,
     loanRatePct: 12,
     loanTermYears: 15,
+    loanPaymentType: "amortized",
     monthlyRent: 25_000,
     occupancyPct: 85,
     isShortTerm: false,
@@ -699,5 +700,244 @@ describe("calculate (full integration)", () => {
       r.grossAnnual * 1.1 ** 2,
       2,
     );
+  });
+});
+
+describe("calculateMonthlyMortgage (interest-only)", () => {
+  test("should return monthly interest when paymentType is interestOnly", () => {
+    const payment = calculateMonthlyMortgage(1_000_000, 12, 15, "interestOnly");
+    expect(payment).toBeCloseTo(1_000_000 * (0.12 / 12), 2);
+  });
+
+  test("should ignore loan term length when paymentType is interestOnly", () => {
+    const short = calculateMonthlyMortgage(1_000_000, 12, 5, "interestOnly");
+    const long = calculateMonthlyMortgage(1_000_000, 12, 30, "interestOnly");
+    expect(short).toBeCloseTo(long, 2);
+  });
+
+  test("should return lower payment than amortized for the same loan", () => {
+    const io = calculateMonthlyMortgage(1_000_000, 12, 15, "interestOnly");
+    const am = calculateMonthlyMortgage(1_000_000, 12, 15, "amortized");
+    expect(io).toBeLessThan(am);
+  });
+
+  test("should return 0 when loan amount is 0 for interestOnly", () => {
+    expect(calculateMonthlyMortgage(0, 12, 15, "interestOnly")).toBe(0);
+  });
+
+  test("should return 0 when rate is 0 for interestOnly", () => {
+    expect(calculateMonthlyMortgage(1_000_000, 0, 15, "interestOnly")).toBe(0);
+  });
+});
+
+describe("calculateRemainingBalance (interest-only)", () => {
+  test("should return full loan amount during the interest-only period", () => {
+    expect(
+      calculateRemainingBalance(1_000_000, 12, 15, 5, "interestOnly"),
+    ).toBe(1_000_000);
+  });
+
+  test("should return full loan amount at the start of the loan for interestOnly", () => {
+    expect(
+      calculateRemainingBalance(1_000_000, 12, 15, 0, "interestOnly"),
+    ).toBe(1_000_000);
+  });
+
+  test("should return 0 at or after the end of the loan term for interestOnly", () => {
+    expect(
+      calculateRemainingBalance(1_000_000, 12, 15, 15, "interestOnly"),
+    ).toBe(0);
+    expect(
+      calculateRemainingBalance(1_000_000, 12, 15, 20, "interestOnly"),
+    ).toBe(0);
+  });
+
+  test("should not decrease across the interest-only period", () => {
+    const y1 = calculateRemainingBalance(1_000_000, 12, 15, 1, "interestOnly");
+    const y7 = calculateRemainingBalance(1_000_000, 12, 15, 7, "interestOnly");
+    const y14 = calculateRemainingBalance(1_000_000, 12, 15, 14, "interestOnly");
+    expect(y1).toBe(1_000_000);
+    expect(y7).toBe(1_000_000);
+    expect(y14).toBe(1_000_000);
+  });
+});
+
+describe("calculate with interestOnly loanPaymentType", () => {
+  test("should compute annual mortgage as loan amount times interest rate", () => {
+    const r = calculate(
+      makeInputs({
+        purchasePrice: 2_000_000,
+        downPaymentPct: 20,
+        loanRatePct: 12,
+        loanPaymentType: "interestOnly",
+      }),
+    );
+    expect(r.loanAmount).toBe(1_600_000);
+    expect(r.mortgageAnnual).toBeCloseTo(1_600_000 * 0.12, 2);
+  });
+
+  test("should have lower annual mortgage than amortized for same loan", () => {
+    const io = calculate(
+      makeInputs({
+        downPaymentPct: 30,
+        loanRatePct: 12,
+        loanPaymentType: "interestOnly",
+      }),
+    );
+    const am = calculate(
+      makeInputs({
+        downPaymentPct: 30,
+        loanRatePct: 12,
+        loanPaymentType: "amortized",
+      }),
+    );
+    expect(io.mortgageAnnual).toBeLessThan(am.mortgageAnnual);
+  });
+
+  test("should report 0 equity buildup when holdYears is less than loan term", () => {
+    const r = calculate(
+      makeInputs({
+        downPaymentPct: 30,
+        loanRatePct: 12,
+        loanTermYears: 15,
+        holdYears: 5,
+        loanPaymentType: "interestOnly",
+      }),
+    );
+    expect(r.equityBuildup).toBe(0);
+  });
+
+  test("should report every year's principal paid as 0 when holdYears is less than loan term", () => {
+    const r = calculate(
+      makeInputs({
+        downPaymentPct: 30,
+        loanRatePct: 12,
+        loanTermYears: 15,
+        holdYears: 5,
+        loanPaymentType: "interestOnly",
+      }),
+    );
+    for (const s of r.yearSnapshots) {
+      expect(s.principalPaid).toBe(0);
+    }
+  });
+
+  test("should report every year's interest paid as constant loan amount times rate", () => {
+    const r = calculate(
+      makeInputs({
+        downPaymentPct: 30,
+        loanRatePct: 12,
+        loanTermYears: 15,
+        holdYears: 5,
+        loanPaymentType: "interestOnly",
+      }),
+    );
+    const expectedInterest = r.loanAmount * 0.12;
+    for (const s of r.yearSnapshots) {
+      expect(s.interestPaid).toBeCloseTo(expectedInterest, 2);
+      expect(s.mortgageAnnual).toBeCloseTo(expectedInterest, 2);
+    }
+  });
+
+  test("should subtract full loan amount from sale proceeds when holdYears is less than loan term", () => {
+    const r = calculate(
+      makeInputs({
+        downPaymentPct: 30,
+        loanRatePct: 12,
+        loanTermYears: 15,
+        holdYears: 5,
+        appreciationPct: 5,
+        sellingCostPct: 0,
+        rentIncreasePct: 0,
+        expenseInflationPct: 0,
+        loanPaymentType: "interestOnly",
+      }),
+    );
+    const expectedProfit =
+      r.futureValue - r.loanAmount + r.cumulativeCashFlow - r.cashInvested;
+    expect(r.totalProfit).toBeCloseTo(expectedProfit, 2);
+  });
+
+  test("should produce higher cumulative cash flow than amortized over the interest-only period", () => {
+    const io = calculate(
+      makeInputs({
+        downPaymentPct: 30,
+        loanRatePct: 12,
+        loanTermYears: 15,
+        holdYears: 5,
+        loanPaymentType: "interestOnly",
+      }),
+    );
+    const am = calculate(
+      makeInputs({
+        downPaymentPct: 30,
+        loanRatePct: 12,
+        loanTermYears: 15,
+        holdYears: 5,
+        loanPaymentType: "amortized",
+      }),
+    );
+    expect(io.cumulativeCashFlow).toBeGreaterThan(am.cumulativeCashFlow);
+  });
+
+  test("should produce identical results to amortized when downPayment is 100% (no loan)", () => {
+    const io = calculate(
+      makeInputs({ downPaymentPct: 100, loanPaymentType: "interestOnly" }),
+    );
+    const am = calculate(
+      makeInputs({ downPaymentPct: 100, loanPaymentType: "amortized" }),
+    );
+    expect(io.totalProfit).toBeCloseTo(am.totalProfit, 2);
+    expect(io.mortgageAnnual).toBe(0);
+    expect(am.mortgageAnnual).toBe(0);
+  });
+
+  test("year snapshot principal + interest should equal debt service in interest-only mode", () => {
+    const r = calculate(
+      makeInputs({
+        downPaymentPct: 30,
+        loanRatePct: 12,
+        loanTermYears: 15,
+        holdYears: 5,
+        loanPaymentType: "interestOnly",
+      }),
+    );
+    for (const s of r.yearSnapshots) {
+      expect(s.principalPaid + s.interestPaid).toBeCloseTo(s.mortgageAnnual, 2);
+    }
+  });
+
+  test("sum of yearly principal paid should equal equity buildup in interest-only mode", () => {
+    const r = calculate(
+      makeInputs({
+        downPaymentPct: 30,
+        loanRatePct: 12,
+        loanTermYears: 15,
+        holdYears: 5,
+        loanPaymentType: "interestOnly",
+      }),
+    );
+    const totalPrincipal = r.yearSnapshots.reduce(
+      (a, s) => a + s.principalPaid,
+      0,
+    );
+    expect(totalPrincipal).toBeCloseTo(r.equityBuildup, 2);
+  });
+
+  test("should record balloon principal payment in the year the loan term ends", () => {
+    const r = calculate(
+      makeInputs({
+        downPaymentPct: 30,
+        loanRatePct: 12,
+        loanTermYears: 3,
+        holdYears: 5,
+        loanPaymentType: "interestOnly",
+      }),
+    );
+    expect(r.yearSnapshots[0].principalPaid).toBe(0);
+    expect(r.yearSnapshots[1].principalPaid).toBe(0);
+    expect(r.yearSnapshots[2].principalPaid).toBeCloseTo(r.loanAmount, 2);
+    expect(r.yearSnapshots[3].mortgageAnnual).toBe(0);
+    expect(r.yearSnapshots[4].mortgageAnnual).toBe(0);
   });
 });

@@ -1,3 +1,5 @@
+export type LoanPaymentType = "amortized" | "interestOnly";
+
 export interface PropertyInputs {
   purchasePrice: number;
   closingCostPct: number;
@@ -6,6 +8,7 @@ export interface PropertyInputs {
   downPaymentPct: number;
   loanRatePct: number;
   loanTermYears: number;
+  loanPaymentType: LoanPaymentType;
 }
 
 export interface RentalInputs {
@@ -86,10 +89,14 @@ export function calculateMonthlyMortgage(
   loanAmount: number,
   annualRatePct: number,
   termYears: number,
+  paymentType: LoanPaymentType = "amortized",
 ): number {
   if (loanAmount <= 0 || annualRatePct < 0 || termYears <= 0) return 0;
-  if (annualRatePct === 0) return loanAmount / (termYears * 12);
   const monthlyRate = annualRatePct / 100 / 12;
+  if (paymentType === "interestOnly") {
+    return loanAmount * monthlyRate;
+  }
+  if (annualRatePct === 0) return loanAmount / (termYears * 12);
   const totalPayments = termYears * 12;
   const compoundFactor = (1 + monthlyRate) ** totalPayments;
   return (loanAmount * (monthlyRate * compoundFactor)) / (compoundFactor - 1);
@@ -100,9 +107,14 @@ export function calculateRemainingBalance(
   annualRatePct: number,
   termYears: number,
   yearsElapsed: number,
+  paymentType: LoanPaymentType = "amortized",
 ): number {
   if (loanAmount <= 0 || annualRatePct < 0 || termYears <= 0) return 0;
   if (yearsElapsed >= termYears) return 0;
+  if (yearsElapsed <= 0) return loanAmount;
+  if (paymentType === "interestOnly") {
+    return loanAmount;
+  }
   if (annualRatePct === 0) {
     return loanAmount * (1 - yearsElapsed / termYears);
   }
@@ -163,6 +175,7 @@ export function calculate(inputs: CalculatorInputs): CalculatorResults {
     loanAmount,
     inputs.loanRatePct,
     inputs.loanTermYears,
+    inputs.loanPaymentType,
   );
   const mortgageAnnual = monthlyMortgage * 12;
 
@@ -217,16 +230,28 @@ export function calculate(inputs: CalculatorInputs): CalculatorResults {
       inputs.loanRatePct,
       inputs.loanTermYears,
       year,
+      inputs.loanPaymentType,
     );
     const balanceEnd = calculateRemainingBalance(
       loanAmount,
       inputs.loanRatePct,
       inputs.loanTermYears,
       year + 1,
+      inputs.loanPaymentType,
     );
-    const yearMortgage = balanceStart > 0 ? mortgageAnnual : 0;
     const principalPaid = balanceStart - balanceEnd;
-    const interestPaid = yearMortgage - principalPaid;
+    let yearMortgage: number;
+    let interestPaid: number;
+    if (balanceStart <= 0) {
+      yearMortgage = 0;
+      interestPaid = 0;
+    } else if (inputs.loanPaymentType === "interestOnly") {
+      interestPaid = balanceStart * (inputs.loanRatePct / 100);
+      yearMortgage = interestPaid + principalPaid;
+    } else {
+      yearMortgage = mortgageAnnual;
+      interestPaid = yearMortgage - principalPaid;
+    }
     const yearCashFlow = yearNoi - yearMortgage;
     cumulativeCashFlow += yearCashFlow;
 
@@ -247,6 +272,7 @@ export function calculate(inputs: CalculatorInputs): CalculatorResults {
     inputs.loanRatePct,
     inputs.loanTermYears,
     inputs.holdYears,
+    inputs.loanPaymentType,
   );
   const equityBuildup = loanAmount - remainingBalance;
   const sellingCosts = futureValue * (inputs.sellingCostPct / 100);

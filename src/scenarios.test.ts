@@ -21,6 +21,7 @@ function makeInputs(
     downPaymentPct: 100,
     loanRatePct: 12,
     loanTermYears: 15,
+    loanPaymentType: "amortized",
     monthlyRent: 25_000,
     occupancyPct: 85,
     isShortTerm: false,
